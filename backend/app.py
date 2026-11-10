@@ -39,7 +39,7 @@ def init():
  """)
  c.execute("INSERT OR IGNORE INTO settings(key,value) VALUES('system_prompt',?)",(DEFAULT_PROMPT,))
  email=os.getenv("ADMIN_EMAIL","").strip().lower(); password=os.getenv("ADMIN_PASSWORD","")
- if email and password and len(password)>=12:
+ if email and password and len(password)>=10:
   c.execute("INSERT OR IGNORE INTO users(email,password,role,created_at) VALUES(?,?,?,?)",(email,pwd.hash(password),"admin",datetime.now(timezone.utc).isoformat()))
  c.commit(); c.close()
 @app.on_event("startup")
@@ -70,7 +70,7 @@ class ModelIn(BaseModel):
  thinking: str
 class UserCreate(BaseModel):
  email: str
- password: str=Field(min_length=12)
+ password: str=Field(min_length=10)
 @app.get("/api/health")
 def health(): return {"status":"ok","name":"ELVARQ AI"}
 @app.get("/api/models")
