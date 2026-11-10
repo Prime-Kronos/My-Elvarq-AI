@@ -1,4 +1,4 @@
-import os, sqlite3, time, secrets
+import os, sqlite3, time, secrets, json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
@@ -35,7 +35,7 @@ def init():
  CREATE TABLE IF NOT EXISTS conversations(id INTEGER PRIMARY KEY,user_id INTEGER NOT NULL,title TEXT NOT NULL,created_at TEXT NOT NULL,FOREIGN KEY(user_id) REFERENCES users(id));
  CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY,conversation_id INTEGER NOT NULL,role TEXT NOT NULL,content TEXT NOT NULL,model TEXT,created_at TEXT NOT NULL,FOREIGN KEY(conversation_id) REFERENCES conversations(id));
  CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY,value TEXT NOT NULL);
- CREATE TABLE IF NOT EXISTS usage(id INTEGER PRIMARY KEY,user_id INTEGER,model TEXT,created_at TEXT NOT NULL);
+ CREATE TABLE IF NOT EXISTS usage(id INTEGER PRIMARY KEY,user_id INTEGER,model TEXT,created_at TEXT NOT NULL);\n CREATE TABLE IF NOT EXISTS tool_definitions(id INTEGER PRIMARY KEY,name TEXT UNIQUE NOT NULL,description TEXT NOT NULL,schema_json TEXT NOT NULL,enabled INTEGER NOT NULL DEFAULT 0,created_at TEXT NOT NULL);
  """)
  c.execute("INSERT OR IGNORE INTO settings(key,value) VALUES('system_prompt',?)",(DEFAULT_PROMPT,))
  email=os.getenv("ADMIN_EMAIL","").strip().lower(); password=os.getenv("ADMIN_PASSWORD","")
@@ -165,3 +165,22 @@ async def analyze_file(file:UploadFile=File(...),user=Depends(current_user)):
  return {"filename":Path(file.filename or "file").name,"content":data.decode("utf-8",errors="replace")}
 @app.get("/")
 def index(): return FileResponse(ROOT/"static"/"index.html")
+
+class ToolDefinitionIn(BaseModel):
+ name: str=Field(min_length=2,max_length=50,pattern="^[a-zA-Z][a-zA-Z0-9_]{1,49}$")
+ description: str=Field(min_length=5,max_length=500)
+ schema: dict
+ enabled: bool=False
+@app.get("/api/admin/tools")
+def list_tools(user=Depends(admin)):
+ c=db(); rows=c.execute("SELECT id,name,description,schema_json,enabled,created_at FROM tool_definitions ORDER BY id DESC").fetchall(); c.close()
+ return [{"id":r["id"],"name":r["name"],"description":r["description"],"schema":json.loads(r["schema_json"]),"enabled":bool(r["enabled"]),"created_at":r["created_at"]} for r in rows]
+@app.post("/api/admin/tools")
+def create_tool(data:ToolDefinitionIn,user=Depends(admin)):
+ if data.schema.get("type")!="object" or not isinstance(data.schema.get("properties",{}),dict): raise HTTPException(400,"Нужна JSON Schema типа object с properties")
+ c=db()
+ try:
+  cur=c.execute("INSERT INTO tool_definitions(name,description,schema_json,enabled,created_at) VALUES(?,?,?,?,?)",(data.name,data.description,json.dumps(data.schema),int(data.enabled),datetime.now(timezone.utc).isoformat())); c.commit()
+ except sqlite3.IntegrityError: c.close(); raise HTTPException(409,"Инструмент с таким именем уже существует")
+ c.close()
+ return {"id":cur.lastrowid,"name":data.name,"enabled":data.enabled,"note":"Сохранено как декларация. Исполнение произвольного кода не поддерживается и отключено по умолчанию."}
