@@ -1,26 +1,20 @@
-# ELVARQ AI
+# ELVARQ AI — GitHub Pages edition
 
-A responsive AI assistant web application with a FastAPI backend and server-side Groq integration.
+Static browser edition of ELVARQ AI.
 
-## Stack
-- Frontend: vanilla HTML, CSS and JavaScript
-- Backend: Python + FastAPI
-- Storage: SQLite by default (PostgreSQL-ready deployment configuration)
-- AI provider: Groq API, accessed only from the backend
+## Deploy
+The GitHub Actions workflow in `.github/workflows/pages.yml` publishes the `site/` folder to GitHub Pages on pushes to `main`.
 
-## Model labels
-- Elvarq Beta 1.0 — lightweight tier
-- Elvarq Middle 3.4 — balanced tier
-- Elvarq Thinking 4.5 — advanced tier
+Expected URL: https://prime-kronos.github.io/My-Elvarq-AI/
 
-These are ELVARQ product labels mapped to provider model IDs in server configuration; they are not claims of independently trained models.
+## Models
+- **Elvarq Beta 1.0** → `llama-3.1-8b-instant`
+- **Elvarq Middle 3.4** → `openai/gpt-oss-20b`
+- **Elvarq Thinking 4.5** → `openai/gpt-oss-120b`
 
-## Run locally
-1. `cd backend`
-2. `python -m venv .venv && source .venv/bin/activate`
-3. `pip install -r requirements.txt`
-4. Copy `.env.example` to `.env` and set `GROQ_API_KEY` and `JWT_SECRET`.
-5. `uvicorn app:app --reload`
-6. Open `http://127.0.0.1:8000`.
+These are ELVARQ product labels mapped to currently listed Groq model IDs.
 
-Never commit `.env` or expose API keys in frontend code.
+## Important security limitation
+GitHub Pages is static hosting. It cannot keep a Groq API key secret or run a private backend. This edition asks the user to enter a key at runtime and keeps it only in the current page memory; it is not committed to the repository or saved to local storage. Browser requests expose the key to the browser owner and browser developer tools. Do not use a personal production key in a public/shared kiosk. For a public multi-user service, use a protected server-side API.
+
+This static edition does not include server-side accounts, shared conversation storage, or a secure owner admin panel. Existing backend source is retained in `backend/` but is not deployed by Pages.
